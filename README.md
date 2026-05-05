@@ -1,73 +1,60 @@
-# React + TypeScript + Vite
+# WebGL Fluid React
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive WebGL fluid simulation rendered inside a React app. Text is rasterized onto an off-screen canvas and used as a texture mask that the fluid dye follows, producing a liquid-text effect. Mouse/touch movement splats velocity and color into the simulation in real time.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Real-time incompressible Navier-Stokes fluid simulation on the GPU
+- Text rendered as a fluid-masked texture (font, size, and bold are configurable)
+- Auto-preview animation plays until the user moves the pointer
+- Live controls via [lil-gui](https://lil-gui.georgealways.com/) for font, color, and pointer size
+- Built with React 19, TypeScript, and Vite
 
-## React Compiler
+## How it works
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The simulation runs entirely on the GPU through a series of WebGL fragment shader passes each frame:
 
-## Expanding the ESLint configuration
+1. **Splat** — injects velocity and dye color at the pointer position
+2. **Divergence** — computes ∇·v of the velocity field
+3. **Pressure** — solves the pressure Poisson equation (10 Jacobi iterations)
+4. **Gradient subtract** — removes the pressure gradient to enforce ∇·v = 0
+5. **Advection** — semi-Lagrangian self-advection of velocity and dye
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+The dye advection samples the text canvas texture so that color is pulled from the letter shapes.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Getting started
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+```bash
+# Install dependencies
+bun install   # or npm install
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start the dev server
+bun dev       # or npm run dev
+
+# Production build
+bun run build # or npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+  fluid.ts          # FluidSimulation class — WebGL setup, FBOs, per-frame step
+  shaders.ts        # GLSL shader sources (vert + all frag shaders)
+  FluidCanvas.tsx   # React component — mounts the canvas, wires up events & GUI
+  App.tsx           # Root component
+  main.tsx          # Entry point
+```
+
+## Configuration
+
+The `FluidParams` object (exposed via the GUI) controls:
+
+| Parameter     | Description                              |
+|---------------|------------------------------------------|
+| `text`        | String rendered as the fluid mask        |
+| `fontName`    | One of the available font families       |
+| `isBold`      | Bold weight toggle                       |
+| `fontSize`    | Font size in logical pixels              |
+| `pointerSize` | Radius of the velocity/color splat       |
+| `color`       | RGB dye color injected at the pointer    |
